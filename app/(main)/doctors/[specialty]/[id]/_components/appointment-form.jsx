@@ -21,7 +21,18 @@ export function AppointmentForm({
   const [credits, setCredits] = useState(0);
 
   // Use the useFetch hook to handle loading, data, and error states
-  const { loading, data, error, fn: submitBooking } = useFetch(bookAppointment);
+  const { loading, data, error, fn: submitBooking } = useFetch(async (formData) => {
+    try {
+      const result = await bookAppointment(formData);
+      return result;
+    } catch (err) {
+      // Return the error message in a consistent format
+      return {
+        success: false,
+        error: err.message || "Failed to book appointment. Please try again."
+      };
+    }
+  });
 
   // Fetch user credits on mount
   useEffect(() => {
@@ -47,6 +58,7 @@ export function AppointmentForm({
     // Check if user has enough credits
     if (credits < 2) {
       toast.error("Not enough credits! You need 2 credits to book an appointment.");
+      onError("Not enough credits! You need 2 credits to book an appointment.");
       return;
     }
 
@@ -67,15 +79,25 @@ export function AppointmentForm({
       if (data.success) {
         onComplete();
       } else if (data.error) {
-        toast.error(data.error);
-        onError(new Error(data.error));
+        // Handle specific error cases
+        if (data.error.includes("Insufficient credits")) {
+          toast.error("Not enough credits! You need 2 credits to book an appointment.");
+          onError("Not enough credits! You need 2 credits to book an appointment.");
+        } else if (data.error.includes("already booked")) {
+          toast.error("This time slot is no longer available. Please select another time.");
+          onError("This time slot is no longer available. Please select another time.");
+        } else {
+          toast.error(data.error);
+          onError(data.error);
+        }
       }
     }
     
     if (error) {
       console.error("Booking error:", error);
-      toast.error("Failed to book appointment. Please try again.");
-      onError(error);
+      const errorMessage = error.message || "Failed to book appointment. Please try again.";
+      toast.error(errorMessage);
+      onError(errorMessage);
     }
   }, [data, error, onComplete, onError]);
 
