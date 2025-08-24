@@ -9,9 +9,17 @@ import { addDays, addMinutes, format, isBefore, endOfDay } from "date-fns";
 import { Auth } from "@vonage/auth";
 
 // Initialize Vonage Video API client
+// Ensure private key has proper PEM formatting
+let privateKey = process.env.VONAGE_PRIVATE_KEY || "";
+
+// Add proper PEM formatting if missing
+if (privateKey && !privateKey.startsWith('-----BEGIN PRIVATE KEY-----')) {
+  privateKey = `-----BEGIN PRIVATE KEY-----\n${privateKey.trim()}\n-----END PRIVATE KEY-----`;
+}
+
 const credentials = new Auth({
   applicationId: process.env.NEXT_PUBLIC_VONAGE_APPLICATION_ID,
-  privateKey: process.env.VONAGE_PRIVATE_KEY,
+  privateKey: privateKey
 });
 const options = {};
 const vonage = new Vonage(credentials, options);
@@ -374,7 +382,7 @@ export async function getAvailableTimeSlots(doctorId) {
       };
     }
 
-    // Get the next 4 days
+    // Get the current time in UTC to properly compare with database times
     const now = new Date();
     const days = [now, addDays(now, 1), addDays(now, 2), addDays(now, 3)];
 
@@ -397,37 +405,48 @@ export async function getAvailableTimeSlots(doctorId) {
       const dayString = format(day, "yyyy-MM-dd");
       availableSlotsByDay[dayString] = [];
 
-      // Create a copy of the availability start/end times for this day
-      const availabilityStart = new Date(availability.startTime);
-      const availabilityEnd = new Date(availability.endTime);
+      // Extract hours and minutes from availability times (using UTC to avoid time zone issues)
+      const startHours = availability.startTime.getUTCHours();
+      const startMinutes = availability.startTime.getUTCMinutes();
+      const endHours = availability.endTime.getUTCHours();
+      const endMinutes = availability.endTime.getUTCMinutes();
 
-      // Set the day to the current day we're processing
-      availabilityStart.setFullYear(
-        day.getFullYear(),
-        day.getMonth(),
-        day.getDate()
-      );
-      availabilityEnd.setFullYear(
-        day.getFullYear(),
-        day.getMonth(),
-        day.getDate()
-      );
+      // Create date objects for the target day using UTC methods
+      const availabilityStart = new Date(Date.UTC(
+        day.getUTCFullYear(),
+        day.getUTCMonth(),
+        day.getUTCDate(),
+        startHours,
+        startMinutes
+      ));
+      
+      const availabilityEnd = new Date(Date.UTC(
+        day.getUTCFullYear(),
+        day.getUTCMonth(),
+        day.getUTCDate(),
+        endHours,
+        endMinutes
+      ));
 
       let current = new Date(availabilityStart);
       const end = new Date(availabilityEnd);
 
-      while (
-        isBefore(addMinutes(current, 30), end) ||
-        +addMinutes(current, 30) === +end
-      ) {
+      // Generate 30-minute slots
+      while (isBefore(current, end) || +current === +end) {
         const next = addMinutes(current, 30);
+        
+        // Skip slots that end after the availability end time
+        if (isBefore(end, next)) {
+          break;
+        }
 
         // Skip past slots
-        if (isBefore(current, now)) {
+        if (isBefore(next, now)) {
           current = next;
           continue;
         }
 
+        // Check if this slot overlaps with existing appointments
         const overlaps = existingAppointments.some((appointment) => {
           const aStart = new Date(appointment.startTime);
           const aEnd = new Date(appointment.endTime);
@@ -440,13 +459,11 @@ export async function getAvailableTimeSlots(doctorId) {
         });
 
         if (!overlaps) {
+          // Format the time in 12-hour format with AM/PM
           availableSlotsByDay[dayString].push({
             startTime: current.toISOString(),
             endTime: next.toISOString(),
-            formatted: `${format(current, "h:mm a")} - ${format(
-              next,
-              "h:mm a"
-            )}`,
+            formatted: `${format(current, "h:mm a")} - ${format(next, "h:mm a")}`,
             day: format(current, "EEEE, MMMM d"),
           });
         }
