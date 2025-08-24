@@ -12,11 +12,6 @@ export default async function DoctorProfilePage({ params }) {
       getAvailableTimeSlots(id),
     ]);
 
-    // If doctor not found, throw error to be caught in catch block
-    if (!doctorData?.doctor) {
-      throw new Error("Doctor not found");
-    }
-
     return (
       <DoctorProfile
         doctor={doctorData.doctor}
@@ -26,7 +21,20 @@ export default async function DoctorProfilePage({ params }) {
     );
   } catch (error) {
     console.error("Error loading doctor profile:", error);
-    // Redirect to the specific specialty page, not the root doctors path
-    redirect(`/doctors/${specialty}`);
+    
+    // Only redirect if the doctor isn't found
+    if (error.message.includes("Doctor not found")) {
+      redirect(`/doctors/${specialty}`);
+    }
+    
+    // For other errors, still show the page but with error state
+    return (
+      <DoctorProfile
+        doctor={null}
+        availableDays={[]}
+        specialty={specialty}
+        initialError={error.message}
+      />
+    );
   }
 }
