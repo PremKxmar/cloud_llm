@@ -8,8 +8,7 @@ import { Vonage } from "@vonage/server-sdk";
 import { addDays, addMinutes, format, isBefore, endOfDay } from "date-fns";
 import { Auth } from "@vonage/auth";
 
-// Initialize Vonage Video API client
-// Ensure private key has proper PEM formatting
+// Initialize Vonage Video API client with proper private key formatting
 let privateKey = process.env.VONAGE_PRIVATE_KEY || "";
 
 // Add proper PEM formatting if missing
@@ -26,9 +25,6 @@ const vonage = new Vonage(credentials, options);
 
 /**
  * Book a new appointment with a doctor
- * 
- * CRITICAL CHANGE: Now returns error objects instead of throwing errors
- * This prevents page-level redirects when booking fails
  */
 export async function bookAppointment(formData) {
   const { userId } = await auth();
@@ -163,7 +159,7 @@ export async function bookAppointment(formData) {
         endTime,
         patientDescription,
         status: "SCHEDULED",
-        videoSessionId: sessionId, // Store the Vonage session ID
+        videoSessionId: sessionId,
       },
     });
 
@@ -192,7 +188,6 @@ async function createVideoSession() {
 
 /**
  * Generate a token for a video session
- * This will be called when either doctor or patient is about to join the call
  */
 export async function generateVideoToken(formData) {
   const { userId } = await auth();
@@ -257,10 +252,10 @@ export async function generateVideoToken(formData) {
       };
     }
 
-    // Verify the appointment is within a valid time range (e.g., starting 5 minutes before scheduled time)
+    // Verify the appointment is within a valid time range
     const now = new Date();
     const appointmentTime = new Date(appointment.startTime);
-    const timeDifference = (appointmentTime - now) / (1000 * 60); // difference in minutes
+    const timeDifference = (appointmentTime - now) / (1000 * 60);
 
     if (timeDifference > 30) {
       return {
@@ -270,10 +265,9 @@ export async function generateVideoToken(formData) {
     }
 
     // Generate a token for the video session
-    // Token expires 2 hours after the appointment start time
     const appointmentEndTime = new Date(appointment.endTime);
     const expirationTime =
-      Math.floor(appointmentEndTime.getTime() / 1000) + 60 * 60; // 1 hour after end time
+      Math.floor(appointmentEndTime.getTime() / 1000) + 60 * 60;
 
     // Use user's name and role as connection data
     const connectionData = JSON.stringify({
@@ -284,7 +278,7 @@ export async function generateVideoToken(formData) {
 
     // Generate the token with appropriate role and expiration
     const token = vonage.video.generateClientToken(appointment.videoSessionId, {
-      role: "publisher", // Both doctor and patient can publish streams
+      role: "publisher",
       expireTime: expirationTime,
       data: connectionData,
     });
@@ -382,7 +376,7 @@ export async function getAvailableTimeSlots(doctorId) {
       };
     }
 
-    // Get the current time in UTC to properly compare with database times
+    // Get the next 4 days
     const now = new Date();
     const days = [now, addDays(now, 1), addDays(now, 2), addDays(now, 3)];
 
@@ -405,33 +399,32 @@ export async function getAvailableTimeSlots(doctorId) {
       const dayString = format(day, "yyyy-MM-dd");
       availableSlotsByDay[dayString] = [];
 
-      // Extract hours and minutes from availability times (using UTC to avoid time zone issues)
-      const startHours = availability.startTime.getUTCHours();
-      const startMinutes = availability.startTime.getUTCMinutes();
-      const endHours = availability.endTime.getUTCHours();
-      const endMinutes = availability.endTime.getUTCMinutes();
+      // Extract hours and minutes from availability times using LOCAL time
+      const startHours = availability.startTime.getHours();
+      const startMinutes = availability.startTime.getMinutes();
+      const endHours = availability.endTime.getHours();
+      const endMinutes = availability.endTime.getMinutes();
 
-      // Create date objects for the target day using UTC methods
-      const availabilityStart = new Date(Date.UTC(
-        day.getUTCFullYear(),
-        day.getUTCMonth(),
-        day.getUTCDate(),
+      // Create date objects for the target day using LOCAL time
+      const availabilityStart = new Date(
+        day.getFullYear(),
+        day.getMonth(),
+        day.getDate(),
         startHours,
         startMinutes
-      ));
+      );
       
-      const availabilityEnd = new Date(Date.UTC(
-        day.getUTCFullYear(),
-        day.getUTCMonth(),
-        day.getUTCDate(),
+      const availabilityEnd = new Date(
+        day.getFullYear(),
+        day.getMonth(),
+        day.getDate(),
         endHours,
         endMinutes
-      ));
+      );
 
       let current = new Date(availabilityStart);
       const end = new Date(availabilityEnd);
 
-      // Generate 30-minute slots
       while (isBefore(current, end) || +current === +end) {
         const next = addMinutes(current, 30);
         
@@ -446,7 +439,6 @@ export async function getAvailableTimeSlots(doctorId) {
           continue;
         }
 
-        // Check if this slot overlaps with existing appointments
         const overlaps = existingAppointments.some((appointment) => {
           const aStart = new Date(appointment.startTime);
           const aEnd = new Date(appointment.endTime);
@@ -459,7 +451,6 @@ export async function getAvailableTimeSlots(doctorId) {
         });
 
         if (!overlaps) {
-          // Format the time in 12-hour format with AM/PM
           availableSlotsByDay[dayString].push({
             startTime: current.toISOString(),
             endTime: next.toISOString(),
