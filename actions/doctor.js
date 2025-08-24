@@ -67,7 +67,7 @@ export async function setAvailabilitySlots(formData) {
 
     // Create new availability slot
     const newSlot = await db.availability.create({
-       {
+      data: {
         doctorId: doctor.id,
         startTime: new Date(startTime),
         endTime: new Date(endTime),
@@ -217,7 +217,7 @@ export async function cancelAppointment(formData) {
         where: {
           id: appointmentId,
         },
-         {
+        data: {
           status: "CANCELLED",
         },
       });
@@ -225,7 +225,7 @@ export async function cancelAppointment(formData) {
       // Always refund credits to patient and deduct from doctor
       // Create credit transaction for patient (refund)
       await tx.creditTransaction.create({
-         {
+        data: {
           userId: appointment.patientId,
           amount: 2,
           type: "APPOINTMENT_DEDUCTION",
@@ -234,7 +234,7 @@ export async function cancelAppointment(formData) {
 
       // Create credit transaction for doctor (deduction)
       await tx.creditTransaction.create({
-         {
+        data: {
           userId: appointment.doctorId,
           amount: -2,
           type: "APPOINTMENT_DEDUCTION",
@@ -246,7 +246,7 @@ export async function cancelAppointment(formData) {
         where: {
           id: appointment.patientId,
         },
-         {
+        data: {
           credits: {
             increment: 2,
           },
@@ -402,7 +402,7 @@ export async function markAppointmentCompleted(formData) {
       where: {
         id: appointmentId,
       },
-       {
+      data: {
         status: "COMPLETED",
       },
     });
