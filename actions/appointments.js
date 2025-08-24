@@ -18,12 +18,18 @@ const vonage = new Vonage(credentials, options);
 
 /**
  * Book a new appointment with a doctor
+ * 
+ * CRITICAL CHANGE: Now returns error objects instead of throwing errors
+ * This prevents page-level redirects when booking fails
  */
 export async function bookAppointment(formData) {
   const { userId } = await auth();
 
   if (!userId) {
-    throw new Error("Unauthorized");
+    return {
+      success: false,
+      error: "Unauthorized. Please sign in to book an appointment."
+    };
   }
 
   try {
@@ -36,7 +42,10 @@ export async function bookAppointment(formData) {
     });
 
     if (!patient) {
-      throw new Error("Patient not found");
+      return {
+        success: false,
+        error: "Patient not found. Please complete your profile."
+      };
     }
 
     // Parse form data
@@ -47,7 +56,10 @@ export async function bookAppointment(formData) {
 
     // Validate input
     if (!doctorId || !startTime || !endTime) {
-      throw new Error("Doctor, start time, and end time are required");
+      return {
+        success: false,
+        error: "Doctor, start time, and end time are required"
+      };
     }
 
     // Check if the doctor exists and is verified
@@ -60,12 +72,18 @@ export async function bookAppointment(formData) {
     });
 
     if (!doctor) {
-      throw new Error("Doctor not found or not verified");
+      return {
+        success: false,
+        error: "Doctor not found or not verified"
+      };
     }
 
     // Check if the patient has enough credits (2 credits per appointment)
     if (patient.credits < 2) {
-      throw new Error("Insufficient credits to book an appointment");
+      return {
+        success: false,
+        error: "Insufficient credits to book an appointment"
+      };
     }
 
     // Check if the requested time slot is available
@@ -106,7 +124,10 @@ export async function bookAppointment(formData) {
     });
 
     if (overlappingAppointment) {
-      throw new Error("This time slot is already booked");
+      return {
+        success: false,
+        error: "This time slot is already booked. Please select another time."
+      };
     }
 
     // Create a new Vonage Video API session
@@ -119,7 +140,10 @@ export async function bookAppointment(formData) {
     );
 
     if (!success) {
-      throw new Error(error || "Failed to deduct credits");
+      return {
+        success: false,
+        error: error || "Failed to deduct credits"
+      };
     }
 
     // Create the appointment with the video session ID
@@ -139,7 +163,10 @@ export async function bookAppointment(formData) {
     return { success: true, appointment: appointment };
   } catch (error) {
     console.error("Failed to book appointment:", error);
-    throw new Error("Failed to book appointment:" + error.message);
+    return {
+      success: false,
+      error: "Failed to book appointment: " + (error.message || "Unknown error")
+    };
   }
 }
 
@@ -163,7 +190,10 @@ export async function generateVideoToken(formData) {
   const { userId } = await auth();
 
   if (!userId) {
-    throw new Error("Unauthorized");
+    return {
+      success: false,
+      error: "Unauthorized. Please sign in to join the call."
+    };
   }
 
   try {
@@ -174,13 +204,19 @@ export async function generateVideoToken(formData) {
     });
 
     if (!user) {
-      throw new Error("User not found");
+      return {
+        success: false,
+        error: "User not found"
+      };
     }
 
     const appointmentId = formData.get("appointmentId");
 
     if (!appointmentId) {
-      throw new Error("Appointment ID is required");
+      return {
+        success: false,
+        error: "Appointment ID is required"
+      };
     }
 
     // Find the appointment and verify the user is part of it
@@ -191,17 +227,26 @@ export async function generateVideoToken(formData) {
     });
 
     if (!appointment) {
-      throw new Error("Appointment not found");
+      return {
+        success: false,
+        error: "Appointment not found"
+      };
     }
 
     // Verify the user is either the doctor or the patient for this appointment
     if (appointment.doctorId !== user.id && appointment.patientId !== user.id) {
-      throw new Error("You are not authorized to join this call");
+      return {
+        success: false,
+        error: "You are not authorized to join this call"
+      };
     }
 
     // Verify the appointment is scheduled
     if (appointment.status !== "SCHEDULED") {
-      throw new Error("This appointment is not currently scheduled");
+      return {
+        success: false,
+        error: "This appointment is not currently scheduled"
+      };
     }
 
     // Verify the appointment is within a valid time range (e.g., starting 5 minutes before scheduled time)
@@ -210,9 +255,10 @@ export async function generateVideoToken(formData) {
     const timeDifference = (appointmentTime - now) / (1000 * 60); // difference in minutes
 
     if (timeDifference > 30) {
-      throw new Error(
-        "The call will be available 30 minutes before the scheduled time"
-      );
+      return {
+        success: false,
+        error: "The call will be available 30 minutes before the scheduled time"
+      };
     }
 
     // Generate a token for the video session
@@ -252,7 +298,10 @@ export async function generateVideoToken(formData) {
     };
   } catch (error) {
     console.error("Failed to generate video token:", error);
-    throw new Error("Failed to generate video token:" + error.message);
+    return {
+      success: false,
+      error: "Failed to generate video token: " + (error.message || "Unknown error")
+    };
   }
 }
 
@@ -270,13 +319,22 @@ export async function getDoctorById(doctorId) {
     });
 
     if (!doctor) {
-      throw new Error("Doctor not found");
+      return {
+        success: false,
+        error: "Doctor not found"
+      };
     }
 
-    return { doctor };
+    return { 
+      success: true,
+      doctor 
+    };
   } catch (error) {
     console.error("Failed to fetch doctor:", error);
-    throw new Error("Failed to fetch doctor details");
+    return {
+      success: false,
+      error: "Failed to fetch doctor details: " + (error.message || "Unknown error")
+    };
   }
 }
 
@@ -295,7 +353,10 @@ export async function getAvailableTimeSlots(doctorId) {
     });
 
     if (!doctor) {
-      throw new Error("Doctor not found or not verified");
+      return {
+        success: false,
+        error: "Doctor not found or not verified"
+      };
     }
 
     // Fetch a single availability record
@@ -307,7 +368,10 @@ export async function getAvailableTimeSlots(doctorId) {
     });
 
     if (!availability) {
-      throw new Error("No availability set by doctor");
+      return {
+        success: false,
+        error: "No availability set by doctor"
+      };
     }
 
     // Get the next 4 days
@@ -401,9 +465,15 @@ export async function getAvailableTimeSlots(doctorId) {
       slots,
     }));
 
-    return { days: result };
+    return { 
+      success: true,
+      days: result 
+    };
   } catch (error) {
     console.error("Failed to fetch available slots:", error);
-    throw new Error("Failed to fetch available time slots: " + error.message);
+    return {
+      success: false,
+      error: "Failed to fetch available time slots: " + (error.message || "Unknown error")
+    };
   }
 }
