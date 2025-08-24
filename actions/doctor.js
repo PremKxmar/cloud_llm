@@ -123,6 +123,7 @@ export async function getDoctorAvailability() {
 /**
  * Get doctor's upcoming appointments
  */
+
 export async function getDoctorAppointments() {
   const { userId } = await auth();
 
@@ -371,7 +372,7 @@ export async function markAppointmentCompleted(formData) {
     const appointment = await db.appointment.findUnique({
       where: {
         id: appointmentId,
-        doctorId: doctor.id,
+        doctorId: doctor.id, // Ensure appointment belongs to this doctor
       },
       include: {
         patient: true,
