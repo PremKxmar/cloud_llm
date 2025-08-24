@@ -10,15 +10,45 @@ import { bookAppointment } from "@/actions/appointments";
 import { toast } from "sonner";
 import useFetch from "@/hooks/use-fetch";
 
-export function AppointmentForm({ doctorId, slot, onBack, onComplete }) {
+export function AppointmentForm({ 
+  doctorId, 
+  slot, 
+  onBack, 
+  onComplete,
+  onError 
+}) {
   const [description, setDescription] = useState("");
+  const [credits, setCredits] = useState(0);
 
   // Use the useFetch hook to handle loading, data, and error states
-  const { loading, data, fn: submitBooking } = useFetch(bookAppointment);
+  const { loading, data, error, fn: submitBooking } = useFetch(bookAppointment);
+
+  // Fetch user credits on mount
+  useEffect(() => {
+    const fetchCredits = async () => {
+      try {
+        const response = await fetch('/api/credits');
+        const result = await response.json();
+        if (result.success) {
+          setCredits(result.credits);
+        }
+      } catch (err) {
+        console.error("Error fetching credits:", err);
+      }
+    };
+
+    fetchCredits();
+  }, []);
 
   // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Check if user has enough credits
+    if (credits < 2) {
+      toast.error("Not enough credits! You need 2 credits to book an appointment.");
+      return;
+    }
 
     // Create form data
     const formData = new FormData();
@@ -35,11 +65,19 @@ export function AppointmentForm({ doctorId, slot, onBack, onComplete }) {
   useEffect(() => {
     if (data) {
       if (data.success) {
-        toast.success("Appointment booked successfully!");
         onComplete();
+      } else if (data.error) {
+        toast.error(data.error);
+        onError(new Error(data.error));
       }
     }
-  }, [data]);
+    
+    if (error) {
+      console.error("Booking error:", error);
+      toast.error("Failed to book appointment. Please try again.");
+      onError(error);
+    }
+  }, [data, error, onComplete, onError]);
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -58,6 +96,9 @@ export function AppointmentForm({ doctorId, slot, onBack, onComplete }) {
           <CreditCard className="h-5 w-5 text-emerald-400 mr-2" />
           <span className="text-muted-foreground">
             Cost: <span className="text-white font-medium">2 credits</span>
+            {credits < 2 && (
+              <span className="text-red-400 ml-2"> (You have {credits} credits)</span>
+            )}
           </span>
         </div>
       </div>
@@ -72,10 +113,10 @@ export function AppointmentForm({ doctorId, slot, onBack, onComplete }) {
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           className="bg-background border-emerald-900/20 h-32"
+          disabled={loading}
         />
         <p className="text-sm text-muted-foreground">
-          This information will be shared with the doctor before your
-          appointment.
+          This information will be shared with the doctor before your appointment.
         </p>
       </div>
 
@@ -92,7 +133,7 @@ export function AppointmentForm({ doctorId, slot, onBack, onComplete }) {
         </Button>
         <Button
           type="submit"
-          disabled={loading}
+          disabled={loading || credits < 2}
           className="bg-emerald-600 hover:bg-emerald-700"
         >
           {loading ? (
@@ -100,6 +141,8 @@ export function AppointmentForm({ doctorId, slot, onBack, onComplete }) {
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               Booking...
             </>
+          ) : credits < 2 ? (
+            "Get More Credits"
           ) : (
             "Confirm Booking"
           )}
