@@ -18,7 +18,8 @@ export function AppointmentForm({
   onError 
 }) {
   const [description, setDescription] = useState("");
-  const [credits, setCredits] = useState(0);
+  const [credits, setCredits] = useState(null);
+  const [creditsLoading, setCreditsLoading] = useState(true);
 
   // Use the useFetch hook to handle loading, data, and error states
   const { loading, data, error, fn: submitBooking } = useFetch(async (formData) => {
@@ -38,13 +39,28 @@ export function AppointmentForm({
   useEffect(() => {
     const fetchCredits = async () => {
       try {
+        setCreditsLoading(true);
         const response = await fetch('/api/credits');
+        
+        if (!response.ok) {
+          throw new Error(`Failed to fetch credits: ${response.status}`);
+        }
+        
         const result = await response.json();
+        
         if (result.success) {
           setCredits(result.credits);
+        } else {
+          console.error("Credit fetch failed:", result.error);
+          setCredits(0);
+          toast.error("Could not load your credit balance. Please try again.");
         }
       } catch (err) {
         console.error("Error fetching credits:", err);
+        setCredits(0);
+        toast.error("Network error: Could not load credit balance");
+      } finally {
+        setCreditsLoading(false);
       }
     };
 
@@ -54,6 +70,12 @@ export function AppointmentForm({
   // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Check if credits have been loaded
+    if (credits === null) {
+      toast.error("Credit information not loaded. Please try again.");
+      return;
+    }
 
     // Check if user has enough credits
     if (credits < 2) {
@@ -101,6 +123,16 @@ export function AppointmentForm({
     }
   }, [data, error, onComplete, onError]);
 
+  // Show loading state while credits are being fetched
+  if (creditsLoading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <Loader2 className="h-6 w-6 animate-spin text-emerald-500" />
+        <span className="ml-2 text-muted-foreground">Loading credit balance...</span>
+      </div>
+    );
+  }
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="bg-muted/20 p-4 rounded-lg border border-emerald-900/20 space-y-3">
@@ -118,7 +150,7 @@ export function AppointmentForm({
           <CreditCard className="h-5 w-5 text-emerald-400 mr-2" />
           <span className="text-muted-foreground">
             Cost: <span className="text-white font-medium">2 credits</span>
-            {credits < 2 && (
+            {credits !== null && credits < 2 && (
               <span className="text-red-400 ml-2"> (You have {credits} credits)</span>
             )}
           </span>
@@ -155,7 +187,7 @@ export function AppointmentForm({
         </Button>
         <Button
           type="submit"
-          disabled={loading || credits < 2}
+          disabled={loading || (credits !== null && credits < 2)}
           className="bg-emerald-600 hover:bg-emerald-700"
         >
           {loading ? (
@@ -163,7 +195,7 @@ export function AppointmentForm({
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               Booking...
             </>
-          ) : credits < 2 ? (
+          ) : credits !== null && credits < 2 ? (
             "Get More Credits"
           ) : (
             "Confirm Booking"
