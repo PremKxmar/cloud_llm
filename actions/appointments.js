@@ -280,7 +280,7 @@ export async function generateVideoToken(formData) {
     const token = vonage.video.generateClientToken(appointment.videoSessionId, {
       role: "publisher",
       expireTime: expirationTime,
-      data: connectionData,
+       connectionData,
     });
 
     // Update the appointment with the token
@@ -288,7 +288,7 @@ export async function generateVideoToken(formData) {
       where: {
         id: appointmentId,
       },
-      data: {
+       {
         videoSessionToken: token,
       },
     });
