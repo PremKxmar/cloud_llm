@@ -27,7 +27,6 @@ export function AppointmentForm({
       const result = await bookAppointment(formData);
       return result;
     } catch (err) {
-      // Return the error message in a consistent format
       return {
         success: false,
         error: err.message || "Failed to book appointment. Please try again."
@@ -101,7 +100,6 @@ export function AppointmentForm({
       if (data.success) {
         onComplete();
       } else if (data.error) {
-        // Handle specific error cases
         if (data.error.includes("Insufficient credits")) {
           toast.error("Not enough credits! You need 2 credits to book an appointment.");
           onError("Not enough credits! You need 2 credits to book an appointment.");
