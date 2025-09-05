@@ -1,7 +1,7 @@
 # 🩺 Full Stack Doctors Appointment Platform
 
 <p align="center">
-  <img src="/images/hero.png" alt="project-image">
+  <img src="public/hero.png" alt="project-image">
 </p>
 
 <p align="center">
