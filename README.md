@@ -1,7 +1,7 @@
 # 🩺 Full Stack Doctors Appointment Platform
 
 <p align="center">
-  <img src="https://socialify.git.ci/PremKxmar/cloud/image?custom_language=Next.js&language=1&name=1&owner=1&stargazers=1&theme=Dark" alt="project-image">
+  <img src="/images/hero.png" alt="project-image">
 </p>
 
 <p align="center">
@@ -134,7 +134,7 @@ Open [http://localhost:3000](http://localhost:3000) to view the application.
 
 ## 📱 Screenshots
 
-![Dashboard](https://drive.google.com/file/d/1Q-WGVidrqek8F6c0k35Lg6zLlb2MHnux/view?usp=sharing)
+![Dashboard](/images/hero.png)
 
 ## 🚀 Deployment
 
