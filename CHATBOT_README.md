@@ -4,7 +4,7 @@ This guide explains how to set up the Gemini AI-powered chatbot in your doctors 
 
 ## Features Added
 
-- **AI-Powered Medical Assistant**: Uses Google's Gemini AI to provide health information and guidance
+- **AI-Powered Medical Assistant**: Uses DeepSeek AI through OpenRouter to provide health information and guidance
 - **Patient-Only Access**: Chatbot only appears for patients and unassigned users
 - **Responsive Design**: Works on both desktop and mobile devices
 - **Conversation History**: Maintains context throughout the conversation
@@ -19,17 +19,17 @@ The required package has been automatically installed:
 npm install @google/generative-ai
 ```
 
-### 2. Get Gemini API Key
-1. Go to [Google AI Studio](https://makersuite.google.com/app/apikey)
-2. Sign in with your Google account
-3. Click "Create API Key"
+### 2. Get OpenRouter API Key
+1. Go to [OpenRouter](https://openrouter.ai/)
+2. Sign up or sign in to your account
+3. Get your API key from the dashboard
 4. Copy your API key
 
 ### 3. Configure Environment Variables
 1. Create a `.env.local` file in your project root (if it doesn't exist)
-2. Add your Gemini API key:
+2. Add your OpenRouter API key:
 ```env
-GEMINI_API_KEY=your_actual_gemini_api_key_here
+OPENROUTER_API_KEY=your_actual_openrouter_api_key_here
 ```
 
 ### 4. Restart Your Development Server
