@@ -7,9 +7,21 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 export async function POST(request) {
   try {
+    console.log("Chatbot API called");
+    
+    // Check if API key is configured
+    if (!process.env.GEMINI_API_KEY) {
+      console.error("GEMINI_API_KEY not found in environment variables");
+      return NextResponse.json(
+        { error: "AI service not configured" },
+        { status: 500 }
+      );
+    }
+
     // Check if user is authenticated
     const user = await currentUser();
     if (!user) {
+      console.log("User not authenticated");
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
@@ -17,6 +29,7 @@ export async function POST(request) {
     }
 
     const { message, conversationHistory = [] } = await request.json();
+    console.log("Received message:", message);
 
     if (!message) {
       return NextResponse.json(
@@ -27,6 +40,7 @@ export async function POST(request) {
 
     // Get Gemini model
     const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+    console.log("Gemini model initialized");
 
     // Create context for medical/health-related conversations
     const systemPrompt = `You are a helpful medical assistant chatbot for a doctor appointment platform. 
@@ -70,17 +84,25 @@ export async function POST(request) {
 
   } catch (error) {
     console.error("Chatbot API error:", error);
+    console.error("Error stack:", error.stack);
     
     // Handle specific API errors
-    if (error.message.includes("API key")) {
+    if (error.message.includes("API key") || error.message.includes("API_KEY")) {
       return NextResponse.json(
-        { error: "AI service configuration error" },
+        { error: "AI service configuration error. Please check API key." },
         { status: 500 }
       );
     }
     
+    if (error.message.includes("quota") || error.message.includes("limit")) {
+      return NextResponse.json(
+        { error: "API quota exceeded. Please try again later." },
+        { status: 429 }
+      );
+    }
+    
     return NextResponse.json(
-      { error: "Failed to generate response. Please try again." },
+      { error: `Failed to generate response: ${error.message}` },
       { status: 500 }
     );
   }
